@@ -1,0 +1,25 @@
+{
+  "jobs": [
+    {
+      "name": "trust-trader",
+      "enabled": true,
+      "script": "trust_trader.sh",
+      "owner_role": "side_effect",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "name": "digest",
+      "enabled": true,
+      "script": "digest.sh",
+      "owner_role": "readonly",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "name": "legacy-auto-trader",
+      "enabled": false,
+      "script": "auto_trader.sh",
+      "owner_role": "side_effect",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+[project]
+name = "agent-ops"
+version = "0.1.0"
+description = "Doctor CLI for autonomous agent ops: crons, heartbeats, armed flags."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Jacob Bobrorrow" }]
+keywords = ["agents", "ops", "cron", "heartbeat", "checklist"]
+
+[project.scripts]
+agent-ops = "agent_ops.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["agent_ops*"]

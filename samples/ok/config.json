@@ -1,0 +1,4 @@
+{
+  "armed": false,
+  "comment": "Flip to true only when: agent-ops doctor --root samples/ok is green"
+}

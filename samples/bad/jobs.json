@@ -1,0 +1,16 @@
+{
+  "jobs": [
+    {
+      "name": "auto-trader",
+      "enabled": true,
+      "script": "trade.sh",
+      "owner_role": "side_effect"
+    },
+    {
+      "name": "trust-trader",
+      "enabled": true,
+      "script": "trade.sh",
+      "owner_role": "side_effect"
+    }
+  ]
+}
