@@ -21,11 +21,14 @@ python3 -m agent_ops doctor --root samples/ok
 ## Two-minute demo
 
 ```bash
+# refresh sample heartbeat to "now" (committed timestamp goes stale)
+python3 samples/refresh_heartbeat.py
+
 # healthy fixture → exit 0
-python3 -m agent_ops doctor --root samples/ok
+PYTHONPATH=. python3 -m agent_ops doctor --root samples/ok
 
 # broken fixture → exit 1 (duplicate side-effect cron + stale heartbeat)
-python3 -m agent_ops doctor --root samples/bad
+PYTHONPATH=. python3 -m agent_ops doctor --root samples/bad
 ```
 
 ## Commands
