@@ -37,30 +37,40 @@ PYTHONPATH=. python3 -m agent_ops doctor --root samples/bad
 |---------|----------------|
 | `agent-ops doctor --root DIR` | crons + heartbeat + armed |
 | `agent-ops crons --root DIR` | inventory; fails on duplicate enabled scripts / multiple side-effect owners |
-| `agent-ops heartbeat --root DIR` | `heartbeat.json` fresher than `--max-heartbeat-age` (default 300s) |
+| `agent-ops heartbeat --root DIR` | age vs warn/hard thresholds (PID alone is not health) |
 | `agent-ops armed --root DIR` | `config.json` has boolean `armed` |
+
+Heartbeat thresholds (first match wins): CLI `--max-heartbeat-age` / `--warn-heartbeat-age` → `config.json` → defaults `300` / `120`.
 
 ## Expected files under `--root`
 
 ```text
 jobs.json        # {"jobs":[{"name","enabled","script","owner_role"}, ...]}
-heartbeat.json   # {"sent_at":"2026-10-19T07:00:00Z","pid":123}
-config.json      # {"armed": false}
+heartbeat.json   # {"sent_at":"2026-10-23T10:00:00Z","pid":123}
+config.json      # {"armed": false, "heartbeat_max_age_s": 300, "heartbeat_warn_age_s": 120}
 ```
 
 Point `--root` at a **sanitized export** of your ops dir, or keep a mirror that your watchdog already writes. Do not commit live API keys.
+
+## Watchdog snippet (macOS)
+
+Generic launchd template that runs `doctor` on an interval — alert on exit ≠ 0, not on “PID exists”:
+
+[`samples/watchdog/`](samples/watchdog/)
 
 ## Design rules
 
 1. Missing `armed` ⇒ not safe (fail). Prefer default deny.
 2. PID alone is not health — heartbeat age is.
 3. Exactly one enabled `owner_role=side_effect` (or `trading`) job.
+4. Warn band before hard-stale reduces false “everything is fine” calm.
 
 ## Related
 
 - Notes & calendar: [public-lab](https://github.com/AndrewTech2026/public-lab)
+- Week 2 note: [process up ≠ healthy](https://github.com/AndrewTech2026/public-lab/blob/main/notes/week2-process-up-not-healthy.md)
 - Hardening checklist: [agent-hardening.md](https://github.com/AndrewTech2026/public-lab/blob/main/checklists/agent-hardening.md)
 
 ## Status
 
-`v0.1.0` — stdlib only, fixture-tested. Week-2 calendar may add generic watchdog snippets.
+`v0.1.1` — warn/hard heartbeat thresholds + generic launchd watchdog sample. Stdlib only, fixture-tested.

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.example.agent-ops-doctor</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>-m</string>
+    <string>agent_ops</string>
+    <string>doctor</string>
+    <string>--root</string>
+    <string>REPLACE_WITH_ABS_PATH_TO_OPS_ROOT</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>REPLACE_WITH_ABS_PATH_TO_AGENT_OPS</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PYTHONPATH</key>
+    <string>REPLACE_WITH_ABS_PATH_TO_AGENT_OPS</string>
+  </dict>
+  <key>StartInterval</key>
+  <integer>120</integer>
+  <key>StandardOutPath</key>
+  <string>/tmp/agent-ops-doctor.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/agent-ops-doctor.err.log</string>
+</dict>
+</plist>

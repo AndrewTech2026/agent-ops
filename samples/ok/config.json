@@ -1,4 +1,6 @@
 {
   "armed": false,
-  "comment": "Flip to true only when: agent-ops doctor --root samples/ok is green"
+  "heartbeat_max_age_s": 300,
+  "heartbeat_warn_age_s": 120,
+  "comment": "Flip armed to true only when: agent-ops doctor --root samples/ok is green"
 }

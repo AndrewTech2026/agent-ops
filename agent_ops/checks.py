@@ -4,7 +4,7 @@ Expected layout under --root (all optional; missing = reported):
 
   jobs.json          list of scheduled jobs
   heartbeat.json     { "sent_at": ISO8601 Z, "pid": optional }
-  config.json        { "armed": bool, ... }
+  config.json        { "armed": bool, "heartbeat_max_age_s": optional, ... }
 """
 
 from __future__ import annotations
@@ -23,6 +23,9 @@ class Report:
 
     def info(self, msg: str) -> None:
         self.lines.append(f"· {msg}")
+
+    def warn(self, msg: str) -> None:
+        self.lines.append(f"! {msg}")
 
     def pass_(self, msg: str) -> None:
         self.lines.append(f"✓ {msg}")
@@ -49,6 +52,37 @@ def _parse_time(value: str) -> datetime | None:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
+
+
+def _heartbeat_thresholds(
+    root: Path,
+    *,
+    max_age_s: int | None,
+    warn_age_s: int | None,
+) -> tuple[int, int | None]:
+    """CLI overrides win; else config.json; else defaults (300 / 120)."""
+    cfg = _load_json(root / "config.json")
+    cfg_max = None
+    cfg_warn = None
+    if isinstance(cfg, dict):
+        if "heartbeat_max_age_s" in cfg:
+            cfg_max = int(cfg["heartbeat_max_age_s"])
+        hb = cfg.get("heartbeat")
+        if isinstance(hb, dict):
+            if "max_age_s" in hb:
+                cfg_max = int(hb["max_age_s"])
+            if "warn_age_s" in hb:
+                cfg_warn = int(hb["warn_age_s"])
+        if "heartbeat_warn_age_s" in cfg:
+            cfg_warn = int(cfg["heartbeat_warn_age_s"])
+
+    hard = max_age_s if max_age_s is not None else (cfg_max if cfg_max is not None else 300)
+    warn = warn_age_s if warn_age_s is not None else cfg_warn
+    if warn is None:
+        warn = min(120, hard) if hard > 120 else None
+    if warn is not None and warn >= hard:
+        warn = None
+    return hard, warn
 
 
 def crons(root: Path) -> Report:
@@ -80,7 +114,6 @@ def crons(root: Path) -> Report:
             enabled_scripts.append(script)
             owners.setdefault(role, []).append(name)
 
-    # Duplicate scripts enabled = classic ghost-cron failure mode
     seen: dict[str, list[str]] = {}
     for job in jobs:
         if not isinstance(job, dict) or not job.get("enabled", True):
@@ -111,8 +144,16 @@ def crons(root: Path) -> Report:
     return r
 
 
-def heartbeat(root: Path, *, max_age_s: int = 300) -> Report:
+def heartbeat(
+    root: Path,
+    *,
+    max_age_s: int | None = None,
+    warn_age_s: int | None = None,
+) -> Report:
     r = Report()
+    hard, warn = _heartbeat_thresholds(root, max_age_s=max_age_s, warn_age_s=warn_age_s)
+    r.info(f"thresholds: warn={warn if warn is not None else 'off'}s hard={hard}s")
+
     data = _load_json(root / "heartbeat.json")
     if data is None:
         r.fail("heartbeat.json missing")
@@ -134,10 +175,18 @@ def heartbeat(root: Path, *, max_age_s: int = 300) -> Report:
     pid = data.get("pid")
     extra = f" pid={pid}" if pid is not None else ""
     r.info(f"last heartbeat {age:.0f}s ago{extra}")
-    if age > max_age_s:
-        r.fail(f"heartbeat stale (>{max_age_s}s) — process may be up but not healthy")
+
+    # PID alone is not health — only age matters for pass/fail
+    if age > hard:
+        r.fail(
+            f"heartbeat stale (>{hard}s) — process may be up but not healthy"
+            + (f" (pid={pid} still listed)" if pid is not None else "")
+        )
+    elif warn is not None and age > warn:
+        r.warn(f"heartbeat aging (>{warn}s, ≤{hard}s) — investigate before it goes hard-stale")
+        r.pass_(f"heartbeat within hard limit (≤{hard}s)")
     else:
-        r.pass_(f"heartbeat fresh (≤{max_age_s}s)")
+        r.pass_(f"heartbeat fresh (≤{warn if warn is not None else hard}s)")
     return r
 
 
@@ -168,10 +217,19 @@ def armed(root: Path) -> Report:
     return r
 
 
-def doctor(root: Path, *, max_heartbeat_age_s: int = 300) -> Report:
+def doctor(
+    root: Path,
+    *,
+    max_heartbeat_age_s: int | None = None,
+    warn_heartbeat_age_s: int | None = None,
+) -> Report:
     r = Report()
     r.info(f"root={root}")
-    parts = [crons(root), heartbeat(root, max_age_s=max_heartbeat_age_s), armed(root)]
+    parts = [
+        crons(root),
+        heartbeat(root, max_age_s=max_heartbeat_age_s, warn_age_s=warn_heartbeat_age_s),
+        armed(root),
+    ]
     for part in parts:
         r.lines.extend(part.lines)
         if not part.ok:
