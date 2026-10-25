@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "armed": false,
+  "require_live_reconcile": true,
+  "comment": "Local intent only. Always reconcile against live open orders before trusting stops.",
+  "symbols": {
+    "EXAMPLE": {
+      "stop_loss": { "type": "price", "value": 1.0 },
+      "take_profit": { "type": "price", "value": 2.0 },
+      "max_notional_usd": 50
+    }
+  }
+}

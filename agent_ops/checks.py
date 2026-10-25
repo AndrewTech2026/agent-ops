@@ -5,6 +5,7 @@ Expected layout under --root (all optional; missing = reported):
   jobs.json          list of scheduled jobs
   heartbeat.json     { "sent_at": ISO8601 Z, "pid": optional }
   config.json        { "armed": bool, "heartbeat_max_age_s": optional, ... }
+  protect.json      optional protect-rules schema (no exchange keys)
 """
 
 from __future__ import annotations
@@ -217,6 +218,104 @@ def armed(root: Path) -> Report:
     return r
 
 
+
+
+# Keys that must never appear in a public/sanitized protect file
+_FORBIDDEN_KEY_FRAGMENTS = (
+    "api_key",
+    "apikey",
+    "secret",
+    "private_key",
+    "privkey",
+    "seed",
+    "mnemonic",
+    "wallet",
+    "password",
+    "passphrase",
+    "authorization",
+)
+
+
+def _walk_forbidden_keys(obj: Any, path: str = "$") -> list[str]:
+    hits: list[str] = []
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            key = str(k).lower().replace("-", "_")
+            here = f"{path}.{k}"
+            for frag in _FORBIDDEN_KEY_FRAGMENTS:
+                if frag in key:
+                    hits.append(here)
+                    break
+            hits.extend(_walk_forbidden_keys(v, here))
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            hits.extend(_walk_forbidden_keys(v, f"{path}[{i}]"))
+    return hits
+
+
+def check_config(root: Path) -> Report:
+    """Validate optional protect.json — local protect rules, never live exchange truth."""
+    r = Report()
+    path = root / "protect.json"
+    data = _load_json(path)
+    if data is None:
+        r.info("protect.json missing — skip (ok if this root has no protect rules)")
+        return r
+    if not isinstance(data, dict):
+        r.fail("protect.json must be an object")
+        return r
+
+    forbidden = _walk_forbidden_keys(data)
+    if forbidden:
+        r.fail(
+            "protect.json contains secret-like keys (sanitize before commit): "
+            + ", ".join(forbidden[:8])
+        )
+
+    if "armed" in data and not isinstance(data["armed"], bool):
+        r.fail("`armed` in protect.json must be bool")
+
+    if "require_live_reconcile" not in data:
+        r.warn("missing require_live_reconcile — default should be true (local state ≠ live orders)")
+    elif data["require_live_reconcile"] is not True:
+        r.fail("require_live_reconcile must be true — never trust local stops alone")
+    else:
+        r.pass_("require_live_reconcile=true")
+
+    symbols = data.get("symbols")
+    if symbols is None:
+        r.info("no symbols map (ok for empty template)")
+    elif not isinstance(symbols, dict):
+        r.fail("`symbols` must be an object")
+    else:
+        for sym, rule in symbols.items():
+            if not isinstance(rule, dict):
+                r.fail(f"symbols.{sym} must be an object")
+                continue
+            for side in ("stop_loss", "take_profit"):
+                if side not in rule:
+                    continue
+                block = rule[side]
+                if not isinstance(block, dict):
+                    r.fail(f"symbols.{sym}.{side} must be an object")
+                    continue
+                if "type" not in block or "value" not in block:
+                    r.fail(f"symbols.{sym}.{side} needs type + value")
+                elif not isinstance(block["value"], (int, float)):
+                    r.fail(f"symbols.{sym}.{side}.value must be number")
+            if "max_notional_usd" in rule and not isinstance(rule["max_notional_usd"], (int, float)):
+                r.fail(f"symbols.{sym}.max_notional_usd must be number")
+        if r.ok:
+            r.pass_(f"protect schema ok for {len(symbols)} symbol(s)")
+
+    if r.ok and not forbidden:
+        if "require_live_reconcile" in data and data["require_live_reconcile"] is True:
+            pass  # already passed above
+        elif not any(line.startswith("✗") for line in r.lines):
+            r.pass_("protect.json sanitized shape looks ok")
+    return r
+
+
 def doctor(
     root: Path,
     *,
@@ -229,6 +328,7 @@ def doctor(
         crons(root),
         heartbeat(root, max_age_s=max_heartbeat_age_s, warn_age_s=warn_heartbeat_age_s),
         armed(root),
+        check_config(root),
     ]
     for part in parts:
         r.lines.extend(part.lines)

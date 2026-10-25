@@ -1,0 +1,9 @@
+{
+  "require_live_reconcile": false,
+  "api_secret": "DO-NOT-COMMIT",
+  "symbols": {
+    "EXAMPLE": {
+      "stop_loss": { "type": "price", "value": "oops" }
+    }
+  }
+}

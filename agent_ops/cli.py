@@ -52,6 +52,12 @@ def cmd_armed(args: argparse.Namespace) -> int:
     return _print_report(report)
 
 
+def cmd_check_config(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser().resolve()
+    report = checks.check_config(root)
+    return _print_report(report)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="agent-ops",
@@ -98,6 +104,13 @@ def build_parser() -> argparse.ArgumentParser:
     a = sub.add_parser("armed", help="Show whether side effects are armed")
     add_root(a)
     a.set_defaults(func=cmd_armed)
+
+    cc = sub.add_parser(
+        "check-config",
+        help="Validate protect.json schema (no exchange keys; require live reconcile)",
+    )
+    add_root(cc)
+    cc.set_defaults(func=cmd_check_config)
 
     return p
 

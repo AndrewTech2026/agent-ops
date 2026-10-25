@@ -49,3 +49,21 @@ def test_stale_mentions_pid_still_listed():
     assert not report.ok
     text = "\n".join(report.lines)
     assert "pid=42 still listed" in text
+
+
+PROTECT_BAD = ROOT / "samples" / "protect_bad"
+
+
+def test_protect_ok():
+    report = checks.check_config(OK)
+    assert report.ok, report.lines
+    text = "\n".join(report.lines)
+    assert "require_live_reconcile=true" in text
+
+
+def test_protect_rejects_secrets_and_local_only():
+    report = checks.check_config(PROTECT_BAD)
+    assert not report.ok
+    text = "\n".join(report.lines)
+    assert "secret-like" in text or "api_secret" in text
+    assert "require_live_reconcile" in text
