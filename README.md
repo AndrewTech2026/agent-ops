@@ -29,7 +29,18 @@ PYTHONPATH=. python3 -m agent_ops doctor --root samples/ok
 
 # broken fixture → exit 1 (duplicate side-effect cron + stale heartbeat)
 PYTHONPATH=. python3 -m agent_ops doctor --root samples/bad
+
+# protect rules shape (no keys; must require live reconcile)
+PYTHONPATH=. python3 -m agent_ops check-config --root samples/ok
 ```
+
+## Week rhythm (how I actually use it)
+
+1. **Interval doctor** — launchd/cron runs `doctor` on a sanitized ops export; alert on exit ≠ 0 ([`samples/watchdog/`](samples/watchdog/)).
+2. **After any protect-rule edit** — `check-config` before arming.
+3. **Before blaming the strategy** — inventory crons (`crons`) and confirm a single side-effect owner + fresh heartbeat.
+
+Longer write-up: [week-in-the-life note](https://github.com/AndrewTech2026/public-lab/blob/main/notes/week4-agent-ops-week-in-the-life.md).
 
 ## Commands
 
@@ -73,8 +84,9 @@ Generic launchd template that runs `doctor` on an interval — alert on exit ≠
 - Notes & calendar: [public-lab](https://github.com/AndrewTech2026/public-lab)
 - Week 2 note: [process up ≠ healthy](https://github.com/AndrewTech2026/public-lab/blob/main/notes/week2-process-up-not-healthy.md)
 - Week 3 note: [local state vs live orders](https://github.com/AndrewTech2026/public-lab/blob/main/notes/week3-local-state-vs-live-orders.md)
+- Week 4 note: [how I use agent-ops in a week](https://github.com/AndrewTech2026/public-lab/blob/main/notes/week4-agent-ops-week-in-the-life.md)
 - Hardening checklist: [agent-hardening.md](https://github.com/AndrewTech2026/public-lab/blob/main/checklists/agent-hardening.md)
 
 ## Status
 
-`v0.1.2` — `check-config` for protect.json (no keys; require live reconcile). Stdlib only, fixture-tested.
+`v0.1.2` — `check-config` + week-rhythm docs. Stdlib only, fixture-tested.
